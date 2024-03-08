@@ -1,6 +1,8 @@
 import pandas
 
 df = pandas.read_csv("hotels.csv")
+df_cards = pandas.read_csv("cards.csv", dtype=str).to_dict(orient="records")
+df_cards_security = pandas.read_csv("card_security.csv.", dtype=str)
 
 
 class Hotel:
@@ -24,7 +26,6 @@ class Hotel:
 
 class ReservationTicket:
     def __init__(self, customer_name, hotel_object):
-
         self.customer_name = customer_name
         self.hotel = hotel_object
 
@@ -37,14 +38,48 @@ class ReservationTicket:
         """
         return content
 
+
+class CreditCard:
+    def __init__(self, numbers):
+        self.numbers = numbers
+
+    def validate(self, expiration, holder, cvc):
+        card_data = {"number": self.numbers, "expiration": expiration, "holder": holder, "cvc": cvc}
+
+        if card_data in df_cards:
+            return True
+        else:
+            return False
+
+
+class SecureCreditCard(CreditCard):
+    def __init__(self, number):
+        super().__init__(number)
+        self.number = number
+
+    def authenticate(self, given_password, number):
+        password = df_cards_security.loc[df_cards_security["number"] == self.number, "password"].squeeze()
+        if password == given_password:
+            return True
+        else:
+            return False
+
+
 print(df)
 hotel_id = int(input("Enter the ID of the hotel: "))
 hotel = Hotel(hotel_id)
 
 if hotel.available():
-    hotel.book()
-    name = input("enter your name: ")
-    reservation_ticket = ReservationTicket(customer_name=name, hotel_object=hotel)
-    print(reservation_ticket.generate())
+    credit_card = SecureCreditCard(number="1234567890123456")
+    if credit_card.validate(expiration="12/26", holder="JOHN SMITH", cvc="123"):
+        if credit_card.authenticate(given_password="mypass"):
+            hotel.book()
+            name = input("enter your name: ")
+            reservation_ticket = ReservationTicket(customer_name=name, hotel_object=hotel)
+            print(reservation_ticket.generate())
+        else:
+            print("Invalid credit card credentials")
+    else:
+        print("There was a problem with your payment")
 else:
     print("Hotel is not free.")
